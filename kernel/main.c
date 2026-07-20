@@ -10,13 +10,14 @@ volatile static int started = 0;
 void
 main()
 {
+  // 读取 tp 寄存器，看当前是那个核
   if (cpuid() == 0) {
-    consoleinit();
+    consoleinit(); // 控制台初始化
     printkinit();
     printk("\n");
     printk("xv6 kernel is booting\n");
     printk("\n");
-    kinit();            // physical page allocator
+    kinit();            // 初始化物理内存分配器，简单的单链表
     kvminit();          // create kernel page table
     kvminithart();      // turn on paging
     procinit();         // process table
@@ -29,7 +30,7 @@ main()
     fileinit();         // file table
     virtio_disk_init(); // emulated hard disk
     userinit();         // first user process
-    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+    __atomic_thread_fence(__ATOMIC_SEQ_CST); // 内存屏障，上面的写操作，在这此处全部落实
     started = 1;
   } else {
     while (started == 0)

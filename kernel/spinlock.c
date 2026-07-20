@@ -93,7 +93,7 @@ push_off(void)
 {
   // disable interrupts to prevent an involuntary context
   // switch while using mycpu().
-  uint64 flags = rc_sstatus(SSTATUS_SIE);
+  uint64 flags = rc_sstatus(SSTATUS_SIE); // 读清指令，先读回来，然后关中断
   int old = !!(flags & SSTATUS_SIE);
 
   if (mycpu()->noff == 0)

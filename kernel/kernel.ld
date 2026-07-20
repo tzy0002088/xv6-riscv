@@ -4,8 +4,8 @@ ENTRY( _entry )
 SECTIONS
 {
   /*
-   * ensure that entry.S / _entry is at 0x80000000,
-   * where qemu's -kernel jumps.
+
+      qemu-risc 这张板卡的上一级 boot，会跳到这个地址去执行程序
    */
   . = 0x80000000;
 
@@ -22,7 +22,8 @@ SECTIONS
 
   .rodata : {
     . = ALIGN(16);
-    *(.srodata .srodata.*) /* do not need to distinguish this from .rodata */
+    /* Short Read-Only Data */
+    *(.srodata .srodata.*) /* 不需要将其与 .rodata 分开, 放到同一个 section 里 */
     . = ALIGN(16);
     *(.rodata .rodata.*)
   }

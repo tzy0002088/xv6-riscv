@@ -20,10 +20,10 @@ struct context {
 
 // Per-CPU state.
 struct cpu {
-  struct proc *proc;      // The process running on this cpu, or null.
+  struct proc *proc;      // 当前 cpu 正在执行的那个进程
   struct context context; // swtch() here to enter scheduler().
-  int noff;               // Depth of push_off() nesting.
-  int intena;             // Were interrupts enabled before push_off()?
+  int noff;               // 关中断嵌套深度，只有该值等 0 时，才能真的打开中断
+  int intena;             // 关中断时刻的寄存器值，记录该值，用于恢复中断
 };
 
 extern struct cpu cpus[NCPU];

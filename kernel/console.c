@@ -189,12 +189,15 @@ consoleintr(int c)
 void
 consoleinit(void)
 {
+  // 初始化这把 spin lock
   initlock(&cons.lock, "cons");
 
+  // 初始化 uart 控制器
   uartinit();
 
   // connect read and write system calls
   // to consoleread and consolewrite.
+  // CONSOLE 是 major 设备号约定,xv6 集成了类 unix 系统的习惯
   devsw[CONSOLE].read = consoleread;
   devsw[CONSOLE].write = consolewrite;
 }

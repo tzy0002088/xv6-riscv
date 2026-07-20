@@ -14,7 +14,7 @@ _entry:
         csrr a1, mhartid
         addi a1, a1, 1
         mul a0, a0, a1
-        add sp, sp, a0
+        add sp, sp, a0 // 为每个核设置 sp 寄存器，接下来可以执行 C 代码了
         # jump to start() in start.c
         call start
 spin:

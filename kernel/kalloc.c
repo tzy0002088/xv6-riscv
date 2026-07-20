@@ -27,6 +27,7 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  // kernel image 以下的地址，作为物理内存的起始地址
   freerange(end, (void *)PHYSTOP);
 }
 
@@ -34,6 +35,7 @@ void
 freerange(void *pa_start, void *pa_end)
 {
   char *p;
+  // 起始地址，向上对齐（向高地址对齐）到 4KB
   p = (char *)PGROUNDUP((uint64)pa_start);
   for (; p + PGSIZE <= (char *)pa_end; p += PGSIZE)
     kfree(p);
@@ -56,6 +58,7 @@ kfree(void *pa)
 
   r = (struct run *)pa;
 
+  // 把每一页都给链到空闲链表里
   acquire(&kmem.lock);
   r->next = kmem.freelist;
   kmem.freelist = r;
