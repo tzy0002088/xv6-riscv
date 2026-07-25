@@ -23,7 +23,7 @@ kvmmake(void)
 {
   pagetable_t kpgtbl;
 
-  kpgtbl = (pagetable_t)kalloc();
+  kpgtbl = (pagetable_t)kalloc(); // level2 页表，bit30 ~ bit38 在这个页表中寻找 pte
   memset(kpgtbl, 0, PGSIZE);
 
   // uart registers
@@ -32,7 +32,7 @@ kvmmake(void)
   // virtio mmio disk interface
   kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
-  // PLIC
+  // PLIC, 这会消耗大量的页表, 当前系统把 level 0 的 pte 当作叶子 pte
   kvmmap(kpgtbl, PLIC, PLIC, 0x4000000, PTE_R | PTE_W);
 
   // map kernel text executable and read-only.
@@ -49,7 +49,7 @@ kvmmake(void)
   // allocate and map a kernel stack for each process.
   proc_mapstacks(kpgtbl);
 
-  return kpgtbl;
+  return kpgtbl; // 返回根页表
 }
 
 // add a mapping to the kernel page table.
@@ -91,7 +91,7 @@ kvminithart()
 // pages. A page-table page contains 512 64-bit PTEs.
 // A 64-bit virtual address is split into five fields:
 //   39..63 -- must be zero.
-//   30..38 -- 9 bits of level-2 index.
+//   30..38 -- 9 bits of level-2 index. risc-v 这里的二级页表为根页表，级向下减小
 //   21..29 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..11 -- 12 bits of byte offset within the page.
@@ -100,19 +100,19 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
 {
   if (va >= MAXVA)
     panic("walk");
-
+  // 找到 level 0 的页，当作叶子页（不在寻找下一级 pte, 特征是至少有一个 R/W/X 为 1）
   for (int level = 2; level > 0; level--) {
-    pte_t *pte = &pagetable[PX(level, va)];
+    pte_t *pte = &pagetable[PX(level, va)]; // 寻找当前 level 对应的 entry
     if (*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
       if (!alloc || (pagetable = (pde_t *)kalloc()) == 0)
         return 0;
       memset(pagetable, 0, PGSIZE);
-      *pte = PA2PTE(pagetable) | PTE_V;
+      *pte = PA2PTE(pagetable) | PTE_V; // sv39 的设计非常简洁
     }
   }
-  return &pagetable[PX(0, va)];
+  return &pagetable[PX(0, va)]; // 返回 level 0 页表项
 }
 
 // Look up a virtual address, return the physical address,
@@ -161,7 +161,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   a = va;
   last = va + size - PGSIZE;
   for (;;) {
-    if ((pte = walk(pagetable, a, 1)) == 0)
+    if ((pte = walk(pagetable, a, 1)) == 0) //  // 每级 pte 按照 4KB 去映射
       return -1;
     if (*pte & PTE_V)
       panic("mappages: remap");

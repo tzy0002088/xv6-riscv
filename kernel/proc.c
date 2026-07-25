@@ -33,13 +33,13 @@ void
 proc_mapstacks(pagetable_t kpgtbl)
 {
   struct proc *p;
-
+  // TODO: 为什么要为每个进程创建一个内核栈？
   for (p = proc; p < &proc[NPROC]; p++) {
-    char *pa = kalloc();
+    char *pa = kalloc(); // 申请一页物理内存
     if (pa == 0)
       panic("kalloc");
-    uint64 va = KSTACK((int)(p - proc));
-    kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+    uint64 va = KSTACK((int)(p - proc));// 2 页连续的虚拟内存，作为内核进程的栈
+    kvmmap(kpgtbl, va, (uint64)pa, PGSIZE, PTE_R | PTE_W); // 只映射 4KB，剩余 4KB 当作 guard page 防止栈溢出
   }
 }
 
