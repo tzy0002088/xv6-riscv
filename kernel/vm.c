@@ -35,19 +35,19 @@ kvmmake(void)
   // PLIC, 这会消耗大量的页表, 当前系统把 level 0 的 pte 当作叶子 pte
   kvmmap(kpgtbl, PLIC, PLIC, 0x4000000, PTE_R | PTE_W);
 
-  // map kernel text executable and read-only.
+  // map kernel text executable and read-only. 代码段，1:1映射
   kvmmap(kpgtbl, KERNBASE, KERNBASE, (uint64)etext - KERNBASE, PTE_R | PTE_X);
 
-  // map kernel data and the physical RAM we'll make use of.
+  // map kernel data and the physical RAM we'll make use of. 数据段以及物理内存，1:1 映射
   kvmmap(kpgtbl, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext,
          PTE_R | PTE_W);
 
   // map the trampoline for trap entry/exit to
-  // the highest virtual address in the kernel.
+  // the highest virtual address in the kernel. 将 trampoline 这部分程序，映射到 TRAMPOLINE 这个虚拟地址处，用于当 U 切到 S 时，执行这段代码
   kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 
   // allocate and map a kernel stack for each process.
-  proc_mapstacks(kpgtbl);
+  proc_mapstacks(kpgtbl); // 每个进程，映射内核栈
 
   return kpgtbl; // 返回根页表
 }
@@ -75,8 +75,8 @@ void
 kvminithart()
 {
   // wait for any previous writes to the page table memory to finish.
-  sfence_vma();
-
+  sfence_vma(); // 引出 store buffer 的概念
+  // 使能 mmu
   w_satp(MAKE_SATP(kernel_pagetable));
 
   // flush stale entries from the TLB.

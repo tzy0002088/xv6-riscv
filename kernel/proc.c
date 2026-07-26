@@ -54,7 +54,7 @@ procinit(void)
   for (p = proc; p < &proc[NPROC]; p++) {
     initlock(&p->lock, "proc");
     p->state = UNUSED;
-    p->kstack = KSTACK((int)(p - proc));
+    p->kstack = KSTACK((int)(p - proc)); // 设置进程栈，前面已经映射到了物理空间了
   }
 }
 
@@ -133,7 +133,7 @@ found:
   }
 
   // An empty user page table.
-  p->pagetable = proc_pagetable(p);
+  p->pagetable = proc_pagetable(p); // 创建该进程所需要的 level2 页表（根页表，填入 satp 中）
   if (p->pagetable == 0) {
     freeproc(p);
     release(&p->lock);

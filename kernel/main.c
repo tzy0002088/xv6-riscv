@@ -30,12 +30,12 @@ main()
     fileinit();         // file table
     virtio_disk_init(); // emulated hard disk
     userinit();         // first user process
-    __atomic_thread_fence(__ATOMIC_SEQ_CST); // 内存屏障，上面的写操作，在这此处全部落实
+    __atomic_thread_fence(__ATOMIC_SEQ_CST); // 内存屏障，上面的写操作，在这此处全部落实，然后通知其他核
     started = 1;
   } else {
     while (started == 0)
       ;
-    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+    __atomic_thread_fence(__ATOMIC_SEQ_CST); // 防止乱序，后面的操作，不允许在读取 started 之前
     printk("hart %d starting\n", cpuid());
     kvminithart();  // turn on paging
     trapinithart(); // install kernel trap vector
