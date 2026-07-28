@@ -427,6 +427,7 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
 
+  // cpu 没事儿干就一直呆着这里面，直到有就绪的进程，然后就切过去执行
   c->proc = 0;
   for (;;) {
     // The most recent process to run may have had interrupts
@@ -446,7 +447,7 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
-        swtch(&c->context, &p->context);
+        swtch(&c->context, &p->context); // 切到新的进程中去
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
@@ -516,6 +517,7 @@ forkret(void)
     // File system initialization must be run in the context of a
     // regular process (e.g., because it calls sleep), and thus cannot
     // be run from main().
+    // 内核创建的第一个进程，用于启动用户态程序
     fsinit(ROOTDEV);
 
     first = 0;

@@ -41,6 +41,7 @@ readsb(int dev, struct superblock *sb)
 void
 fsinit(int dev)
 {
+  // 读文件系统镜像，校验镜像是否是真的根文件系统
   readsb(dev, &sb);
   if (sb.magic != FSMAGIC)
     panic("invalid file system");
