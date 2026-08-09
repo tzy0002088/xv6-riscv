@@ -43,7 +43,8 @@ kvmmake(void)
          PTE_R | PTE_W);
 
   // map the trampoline for trap entry/exit to
-  // the highest virtual address in the kernel. 将 trampoline 这部分程序，映射到 TRAMPOLINE 这个虚拟地址处，用于当 U 切到 S 时，执行这段代码
+  // the highest virtual address in the kernel. 将 trampoline 这部分程序，映射到 TRAMPOLINE 这个虚拟地址处
+  //用于当 U 切到 S 时，执行这段代码
   kvmmap(kpgtbl, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 
   // allocate and map a kernel stack for each process.
@@ -166,7 +167,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
     if (*pte & PTE_V)
       panic("mappages: remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
-    if (a == last)
+    if (a == last) // 物理地址全部映射完毕
       break;
     a += PGSIZE;
     pa += PGSIZE;
@@ -180,7 +181,7 @@ pagetable_t
 uvmcreate()
 {
   pagetable_t pagetable;
-  pagetable = (pagetable_t)kalloc();
+  pagetable = (pagetable_t)kalloc(); // 申请一页物理内存，作为根页表
   if (pagetable == 0)
     return 0;
   memset(pagetable, 0, PGSIZE);
@@ -225,12 +226,13 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 
   oldsz = PGROUNDUP(oldsz);
   for (a = oldsz; a < newsz; a += PGSIZE) {
-    mem = kalloc();
+    mem = kalloc(); // 申请一页物理内存
     if (mem == 0) {
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
     memset(mem, 0, PGSIZE);
+    // 建立映射
     if (mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R | PTE_U | xperm) !=
         0) {
       kfree(mem);

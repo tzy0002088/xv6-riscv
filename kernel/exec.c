@@ -24,6 +24,36 @@ flags2perm(int flags)
 //
 // the implementation of the exec() system call
 //
+// kexec() replaces the current process's user address space with
+// a new program loaded from an ELF file. The process struct itself
+// (pid, kstack, trapframe, ofile[], cwd) is reused.
+//
+// Process memory layout after exec (e.g., _cat):
+//
+//   User Virtual Address Space            Kernel Resources (per-process)
+//   ──────────────────────────            ─────────────────────────────
+//
+//   0x00000000 ┌──────────────┐           struct proc (in kernel .bss)
+//              │ .text +      │            ├─ pagetable → L2 (4KB)
+//              │ .rodata      │ ← R|X      ├─ kstack   → KSTACK (4KB + guard)
+//   0x00001000 ├──────────────┤            ├─ trapframe → 4KB (mapped at TRAPFRAME)
+//              │ .data + .bss │ ← R|W      ├─ context (ra/sp/s0-s11)
+//   0x00001220 ├──────────────┤ ← sz      ├─ ofile[16], cwd
+//              │              │            ├─ pid, state, ...
+//              │  heap        │            └─────────────────
+//              │  (sbrk)    ↑ │
+//              │              │           Kernel page table (global):
+//              │  user stack  │            ├─ kernel text/data (R|X, R|W)
+//              │  (1 page)  ↓ │            ├─ device MMIO (UART, PLIC, VIRTIO)
+//   0x00003000 ├──────────────┤ ← stackbase├─ kernel stacks (KSTACK 0..63)
+//   0x00004000 ├──────────────┤ ← sp       ├─ TRAMPOLINE  → trampoline page
+//              │              │            └─ TRAPFRAME   → p->trapframe
+//              │     ...      │
+//              │              │
+//   0x3FFFFFE000 ├──────────────┤ ← TRAPFRAME  (1 page, R|W, = p->trapframe)
+//   0x3FFFFFF000 ├──────────────┤ ← TRAMPOLINE (1 page, R|X, = trampoline.S)
+//   0x4000000000 └──────────────┘ ← MAXVA (Sv39: 256 GB)
+//
 int
 kexec(char *path, char **argv)
 {
@@ -45,7 +75,7 @@ kexec(char *path, char **argv)
   }
   ilock(ip);
 
-  // Read the ELF header.
+  // Read the ELF header. 读 elf 头部，判断是否是 elf 文件
   if (readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;
 
@@ -53,6 +83,7 @@ kexec(char *path, char **argv)
   if (elf.magic != ELF_MAGIC)
     goto bad;
 
+    // 创建一个新的页表，映射当前执行的这个 elf 程序
   if ((pagetable = proc_pagetable(p)) == 0)
     goto bad;
 
@@ -69,10 +100,15 @@ kexec(char *path, char **argv)
     if (ph.vaddr % PGSIZE != 0)
       goto bad;
     uint64 sz1;
+    // 当前进程从虚拟地址 0 开始映射
+    // oldsz 起始虚拟地址, newsz 结束虚拟地址, 这里 newsz = ph.vaddr + ph.memsz
+    // 这里的 newsz 是虚拟地址, 不是物理地址
     if ((sz1 = uvmalloc(pagetable, sz, ph.vaddr + ph.memsz,
                         flags2perm(ph.flags))) == 0)
       goto bad;
+
     sz = sz1;
+    // 把 load 段的内容，写到虚拟地址对应的物理地址中
     if (loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
   }
@@ -86,7 +122,7 @@ kexec(char *path, char **argv)
   // Allocate some pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
   // Use the rest as the user stack.
-  sz = PGROUNDUP(sz);
+  sz = PGROUNDUP(sz); // 对齐到 4KB，准备建立栈空间的 va->pa 的映射
   uint64 sz1;
   if ((sz1 = uvmalloc(pagetable, sz, sz + (USERSTACK + 1) * PGSIZE, PTE_W)) ==
       0)
@@ -105,7 +141,7 @@ kexec(char *path, char **argv)
     sp -= sp % 16; // riscv sp must be 16-byte aligned
     if (sp < stackbase)
       goto bad;
-    if (copyout(pagetable, sp, argv[argc], strlen(argv[argc]) + 1) < 0)
+    if (copyout(pagetable, sp, argv[argc], strlen(argv[argc]) + 1) < 0) // 将参数放到栈中
       goto bad;
     ustack[argc] = sp;
   }
@@ -122,7 +158,7 @@ kexec(char *path, char **argv)
   // a0 and a1 contain arguments to user main(argc, argv)
   // argc is returned via the system call return
   // value, which goes in a0.
-  p->trapframe->a1 = sp;
+  p->trapframe->a1 = sp; // sp 这里给到 argv
 
   // Save program name for debugging.
   for (last = s = path; *s; s++)

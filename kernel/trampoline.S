@@ -95,16 +95,16 @@ uservec:
         sfence.vma zero, zero
 
         # call usertrap()
-        jalr t0
+        jalr t0 // 执行完 usertrap 后，紧接着执行 userret
 
-.globl userret
+.globl userret // sepc 已经是用户态程序的入口了
 userret:
         # usertrap() returns here, with user satp in a0.
         # return from kernel to user.
 
         # switch to the user page table.
         sfence.vma zero, zero
-        csrw satp, a0
+        csrw satp, a0 // 该进程的页表设置给 mmu
         sfence.vma zero, zero
 
         li a0, TRAPFRAME
@@ -146,4 +146,4 @@ userret:
         
         # return to user mode and user pc.
         # prepare_return() sets up sstatus and sepc.
-        sret
+        sret // 执行用户态进程

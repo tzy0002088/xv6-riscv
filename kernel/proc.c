@@ -126,6 +126,7 @@ found:
   p->state = USED;
 
   // Allocate a trapframe page.
+  // 申请一个 tapframe 物理页（每个进程的 tapframe 都不同），用于内核态保存当前进程上文
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
     freeproc(p);
     release(&p->lock);
@@ -133,7 +134,10 @@ found:
   }
 
   // An empty user page table.
-  p->pagetable = proc_pagetable(p); // 创建该进程所需要的 level2 页表（根页表，填入 satp 中）
+  //  创建该进程所需要的 level2 页表（根页表，填入 satp 中）
+  // 该页表映射了 trampoline 用于陷入内核态时执行异常处理函数
+  // 该页表映射了 trapframe, 用于陷入内核态时，保存当前进程的上文
+  p->pagetable = proc_pagetable(p);
   if (p->pagetable == 0) {
     freeproc(p);
     release(&p->lock);
@@ -142,6 +146,7 @@ found:
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
+  // 这个 p 存放在内核空间，内核页表已经映射到虚拟地址了，这里代码的执行，全部走内核页表
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
@@ -187,6 +192,8 @@ proc_pagetable(struct proc *p)
   // at the highest user virtual address.
   // only the supervisor uses it, on the way
   // to/from user space, so not PTE_U.
+  // risc-v trap 时，页表不会自动切换，所以，trap 指向的代码，必须映射到用户态的虚拟地址空间中，才能在 trap 时不会发生缺页异常
+  // 映射 trampoline 到 TRAMPOLINE 这个虚拟地址处
   if (mappages(pagetable, TRAMPOLINE, PGSIZE, (uint64)trampoline,
                PTE_R | PTE_X) < 0) {
     uvmfree(pagetable, 0);
@@ -195,6 +202,7 @@ proc_pagetable(struct proc *p)
 
   // map the trapframe page just below the trampoline page, for
   // trampoline.S.
+  // 切到内核态时，内核态用于保存当前进程寄存器的地方。每个进程的 trapframe 映射到相同的虚拟地址处
   if (mappages(pagetable, TRAPFRAME, PGSIZE, (uint64)(p->trapframe),
                PTE_R | PTE_W) < 0) {
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
@@ -446,8 +454,9 @@ scheduler(void)
         // to release its lock and then reacquire it
         // before jumping back to us.
         p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context); // 切到新的进程中去
+        c->proc = p; // 将 p 设置给当前 cpu, 用于标记当前 cpu 上正在执行的进程
+        // 保存当前上下文到 cpu->context 中，切换到 p->context 中去执行
+        swtch(&c->context, &p->context); // 切到新的进程中去, 第一个 p 的 context 中已经设置了 ra sp 了
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
@@ -518,6 +527,7 @@ forkret(void)
     // regular process (e.g., because it calls sleep), and thus cannot
     // be run from main().
     // 内核创建的第一个进程，用于启动用户态程序
+    // scheduler 第一会调度到这个进程，scheduler 上下文被主动切到这里
     fsinit(ROOTDEV);
 
     first = 0;
@@ -526,6 +536,8 @@ forkret(void)
 
     // We can invoke kexec() now that file system is initialized.
     // Put the return value (argc) of kexec into a0.
+    // 这些代码，都在内核页表建立的虚拟地址空间运行
+    // 执行 /init 程序
     p->trapframe->a0 = kexec("/init", (char *[]){"/init", 0});
     if (p->trapframe->a0 == -1) {
       panic("exec");
