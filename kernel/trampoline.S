@@ -104,10 +104,10 @@ userret:
 
         # switch to the user page table.
         sfence.vma zero, zero
-        csrw satp, a0 // 该进程的页表设置给 mmu
-        sfence.vma zero, zero
-
-        li a0, TRAPFRAME
+        csrw satp, a0 // 该进程的页表设置给 mmu, 该用户态进程页表也映射了这段内核态代码，所以能够接着执行下一条指令
+        sfence.vma zero, zero // flush tlb, 让 mmu 从新的页表开始缓存
+        // 当发生用户态内核态切换时，TRAPFRAME 用于保存/恢复用户态 cpu 寄存器
+        li a0, TRAPFRAME // 每个进程的 trapframe 物理页不同，但都映射到同一个虚拟地址
 
         # restore all but a0 from TRAPFRAME
         ld ra, 40(a0)

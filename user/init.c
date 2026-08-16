@@ -10,7 +10,7 @@
 #include "kernel/fcntl.h"
 
 char *argv[] = {"sh", 0};
-
+// 执行用户态的第一个进程，这个进程由内核态建立并跳过来
 int
 main(void)
 {

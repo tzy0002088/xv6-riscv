@@ -40,7 +40,7 @@ kvmmake(void)
 
   // map kernel data and the physical RAM we'll make use of. 数据段以及物理内存，1:1 映射
   kvmmap(kpgtbl, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext,
-         PTE_R | PTE_W);
+         PTE_R | PTE_W); // 这里 1:1 映射，把 trampoline 这段代码端也映射了，所以，内核态执行 trampoline 时，用两个虚拟地址执行都可以
 
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel. 将 trampoline 这部分程序，映射到 TRAMPOLINE 这个虚拟地址处

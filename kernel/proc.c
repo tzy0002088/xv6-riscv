@@ -545,10 +545,13 @@ forkret(void)
   }
 
   // return to user space, mimicing usertrap()'s return.
+  // 设置 sstatus、sepc, 准备 sret 回到用户态模式、用户态进程入口
   prepare_return();
   uint64 satp = MAKE_SATP(p->pagetable);
+  // 内核页表中 userret 映射了两次，一次是 1:1 映射，另外一次是高地址映射，与用户进程映射同一高地址
+  // 这里跳高地址 userret，原因是为了切换用户态页表后，cpu 取址执行下一条指令时不发生崩溃
   uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
-  ((void (*)(uint64))trampoline_userret)(satp);
+  ((void (*)(uint64))trampoline_userret)(satp); // 跳到虚拟高地址 userret
 }
 
 // Sleep on channel chan, releasing condition lock lk.

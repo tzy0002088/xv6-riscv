@@ -113,7 +113,7 @@ prepare_return(void)
 
   // set up trapframe values that uservec will need when
   // the process next traps into the kernel.
-  p->trapframe->kernel_satp = r_satp();         // kernel page table
+  p->trapframe->kernel_satp = r_satp();         // kernel page table 内核页表，用户态进程陷入内核时，为了能执行内核代码，要切内核页表
   p->trapframe->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
   p->trapframe->kernel_trap = (uint64)usertrap;
   p->trapframe->kernel_hartid = r_tp(); // hartid for cpuid()

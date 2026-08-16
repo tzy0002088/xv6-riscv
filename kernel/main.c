@@ -20,7 +20,7 @@ main()
     kinit();            // 初始化物理内存分配器，简单的单链表
     kvminit();          // create kernel page table
     kvminithart();      // turn on paging
-    procinit();         // process table
+    procinit();         // process table 运行在虚拟地址空间了
     trapinit();         // trap vectors
     trapinithart();     // install kernel trap vector
     plicinit();         // set up interrupt controller

@@ -123,7 +123,7 @@ kexec(char *path, char **argv)
   // Make the first inaccessible as a stack guard.
   // Use the rest as the user stack.
   sz = PGROUNDUP(sz); // 对齐到 4KB，准备建立栈空间的 va->pa 的映射
-  uint64 sz1;
+  uint64 sz1;// 建立用户态栈空间的虚拟地址映射
   if ((sz1 = uvmalloc(pagetable, sz, sz + (USERSTACK + 1) * PGSIZE, PTE_W)) ==
       0)
     goto bad;
@@ -169,7 +169,7 @@ kexec(char *path, char **argv)
   // Commit to the user image.
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;
-  p->sz = sz;
+  p->sz = sz; // 用户态进程入口设置为 elf.entry
   p->trapframe->epc = elf.entry; // initial program counter = ulib.c:start()
   p->trapframe->sp = sp;         // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);

@@ -8,6 +8,8 @@
 //
 // wrapper so that it's OK if main() does not call exit().
 //
+// GNU ld 在用户没有通过 -e 或 ENTRY() 指定入口时
+// 有一个默认规则：如果输出文件中存在一个全局符号叫 start，它就会把这个符号作为 ELF 入口点
 void
 start(int argc, char **argv)
 {
