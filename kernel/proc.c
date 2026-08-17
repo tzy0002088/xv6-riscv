@@ -126,7 +126,7 @@ found:
   p->state = USED;
 
   // Allocate a trapframe page.
-  // 申请一个 tapframe 物理页（每个进程的 tapframe 都不同），用于内核态保存当前进程上文
+  // 申请一个 tapframe 物理页（每个进程的 tapframe 物理地址不同，虚拟地址相同），用于内核态保存当前进程上文
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
     freeproc(p);
     release(&p->lock);
@@ -546,6 +546,7 @@ forkret(void)
 
   // return to user space, mimicing usertrap()'s return.
   // 设置 sstatus、sepc, 准备 sret 回到用户态模式、用户态进程入口
+  // 
   prepare_return();
   uint64 satp = MAKE_SATP(p->pagetable);
   // 内核页表中 userret 映射了两次，一次是 1:1 映射，另外一次是高地址映射，与用户进程映射同一高地址

@@ -16,6 +16,7 @@ main(void)
 {
   int pid, wpid;
 
+  // 系统调用
   if (open("console", O_RDWR) < 0) {
     mknod("console", CONSOLE, 0);
     open("console", O_RDWR);

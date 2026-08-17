@@ -34,17 +34,17 @@ trapinithart(void)
 // called from, and returns to, trampoline.S
 // return value is user satp for trampoline.S to switch to.
 //
-uint64
+uint64 // 内核依然能执行这段代码，这段代码的虚拟地址 1:1 映射到了内核页表中
 usertrap(void)
 {
   int which_dev = 0;
 
   if ((r_sstatus() & SSTATUS_SPP) != 0)
-    panic("usertrap: not from user mode");
+    panic("usertrap: not from user mode"); // 不是来自 user mode，直接 panic
 
   // send interrupts and exceptions to kerneltrap(),
   // since we're now in the kernel.
-  w_stvec((uint64)kernelvec); //DOC: kernelvec
+  w_stvec((uint64)kernelvec); //DOC: kernelvec, trap 入口设置为 kernelvec
 
   struct proc *p = myproc();
 
@@ -59,7 +59,7 @@ usertrap(void)
 
     // sepc points to the ecall instruction,
     // but we want to return to the next instruction.
-    p->trapframe->epc += 4;
+    p->trapframe->epc += 4; // ecall 进来的，sepc 会被 cpu 设置为执行 ecall 的那条指令， 这里设置为下一条指令，用于进程返回
 
     // an interrupt will change sepc, scause, and sstatus,
     // so enable only now that we're done with those registers.
@@ -108,6 +108,8 @@ prepare_return(void)
   intr_off();
 
   // send syscalls, interrupts, and exceptions to uservec in trampoline.S
+  // 这里计算出来 uservec 的高虚拟地址，设置到 stvec 里，当用户态陷入内核态时，cpu 跳到这里执行
+  // TRAMPOLINE 这个虚拟地址映射到用户进程的页表了
   uint64 trampoline_uservec = TRAMPOLINE + (uservec - trampoline);
   w_stvec(trampoline_uservec);
 

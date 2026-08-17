@@ -310,8 +310,8 @@ sys_open(void)
   struct inode *ip;
   int n;
 
-  argint(1, &omode);
-  if ((n = argstr(0, path, MAXPATH)) < 0)
+  argint(1, &omode); // 获取参数 1
+  if ((n = argstr(0, path, MAXPATH)) < 0) // 获取参数 0，该字符串是用户空间的虚拟地址喔
     return -1;
 
   begin_op();
@@ -341,7 +341,7 @@ sys_open(void)
     return -1;
   }
 
-  if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) {
+  if ((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0) { // 把 file 记录到该 pcb（进程控制块） 里
     if (f)
       fileclose(f);
     iunlockput(ip);
@@ -367,7 +367,7 @@ sys_open(void)
   iunlock(ip);
   end_op();
 
-  return fd;
+  return fd; // 返回 fd
 }
 
 uint64

@@ -19,7 +19,7 @@
 trampoline:
 .align 4
 .globl uservec
-uservec:    
+uservec: // user mode 过来的, cpu 切到 s mode, 可能是同步异常（ecall）、中断等
 	#
         # trap.c sets stvec to point here, so
         # traps from user space start here,
@@ -29,12 +29,12 @@ uservec:
 
         # save user a0 in sscratch so
         # a0 can be used to get at TRAPFRAME.
-        csrw sscratch, a0
+        csrw sscratch, a0 // a0 存到 sscratch
 
         # each process has a separate p->trapframe memory area,
         # but it's mapped to the same virtual address
         # (TRAPFRAME) in every process's user page table.
-        li a0, TRAPFRAME
+        li a0, TRAPFRAME // 拿到当前进程的 TRAPFRAME 空间，用于保存当前进程的 cpu 寄存器
         
         # save the user registers in TRAPFRAME
         sd ra, 40(a0)
@@ -70,10 +70,10 @@ uservec:
 
 	# save the user a0 in p->trapframe->a0
         csrr t0, sscratch
-        sd t0, 112(a0)
+        sd t0, 112(a0) // a0 也存到该进程的 trapframe 里
 
         # initialize kernel stack pointer, from p->trapframe->kernel_sp
-        ld sp, 8(a0)
+        ld sp, 8(a0) // 切到内核栈
 
         # make tp hold the current hartid, from p->trapframe->kernel_hartid
         ld tp, 32(a0)
@@ -82,17 +82,17 @@ uservec:
         ld t0, 16(a0)
 
         # fetch the kernel page table address, from p->trapframe->kernel_satp.
-        ld t1, 0(a0)
+        ld t1, 0(a0) // 拿到内核态页表
 
         # wait for any previous memory operations to complete, so that
         # they use the user page table.
         sfence.vma zero, zero
 
         # install the kernel page table.
-        csrw satp, t1
+        csrw satp, t1 // 切到内核态页表
 
         # flush now-stale user entries from the TLB.
-        sfence.vma zero, zero
+        sfence.vma zero, zero // 这条指令在内核页表运行了，因为内核页表也同样映射了该段代码到同一虚拟地址空间
 
         # call usertrap()
         jalr t0 // 执行完 usertrap 后，紧接着执行 userret
@@ -146,4 +146,4 @@ userret:
         
         # return to user mode and user pc.
         # prepare_return() sets up sstatus and sepc.
-        sret // 执行用户态进程
+        sret // 执行用户态进程，第一个用户态进程开启!!!!

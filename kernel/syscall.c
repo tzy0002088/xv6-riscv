@@ -26,7 +26,7 @@ int
 fetchstr(uint64 addr, char *buf, int max)
 {
   struct proc *p = myproc();
-  if (copyinstr(p->pagetable, buf, addr, max) < 0)
+  if (copyinstr(p->pagetable, buf, addr, max) < 0) // 根据用户态页表，查该用户空间的虚拟地址对应的物理地址是啥
     return -1;
   return strlen(buf);
 }

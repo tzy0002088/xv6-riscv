@@ -378,23 +378,28 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   return 0;
 }
 
-// Copy from user to kernel.
-// Copy len bytes to dst from virtual address srcva in a given page table.
-// Return 0 on success, -1 on error.
+// 从用户空间拷贝数据到内核。
+// 从给定页表 pagetable 中的用户虚拟地址 srcva，拷贝 len 字节到内核缓冲区 dst。
+// 成功返回 0，失败返回 -1。
+//
+// 例子：PGSIZE 为 4096，srcva 为 0x1205，len 为 100 时：
+//   va0 = 0x1000，页内偏移 offset = srcva - va0 = 0x205。
+//   当前页剩余字节数 = PGSIZE - offset = 4096 - 517 = 3579。
+//   因为 100 < 3579，所以第一轮只拷贝 100 字节。
 int
 copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
   uint64 n, va0, pa0;
 
   while (len > 0) {
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
+    va0 = PGROUNDDOWN(srcva); // 获得该虚拟地址对应的页起始地址
+    pa0 = walkaddr(pagetable, va0);// 得到页表项
     if (pa0 == 0) {
       if ((pa0 = vmfault(pagetable, va0, 1)) == 0) {
         return -1;
       }
     }
-    n = PGSIZE - (srcva - va0);
+    n = PGSIZE - (srcva - va0); // 算下该地址到页的结尾还剩多少字节，处理跨页
     if (n > len)
       n = len;
     memmove(dst, (void *)(pa0 + (srcva - va0)), n);
@@ -418,7 +423,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
   while (got_null == 0 && max > 0) {
     va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
+    pa0 = walkaddr(pagetable, va0); // 找这个虚拟地址对应的页表项
     if (pa0 == 0)
       return -1;
     n = PGSIZE - (srcva - va0);
