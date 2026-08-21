@@ -269,14 +269,15 @@ kfork(void)
 {
   int i, pid;
   struct proc *np;
-  struct proc *p = myproc();
-
+  struct proc *p = myproc(); // 获取到当前进程，也就是父进程
+  // 这儿已经切到内核页表了，这代码在内核页表上执行
   // Allocate process.
   if ((np = allocproc()) == 0) {
     return -1;
   }
 
   // Copy user memory from parent to child.
+  // 将父进程的物理页中的内容，全部拷贝到子进程的物理页中，并建立该子进程的页表
   if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
     freeproc(np);
     release(&np->lock);
@@ -285,15 +286,16 @@ kfork(void)
   np->sz = p->sz;
 
   // copy saved user registers.
+  // 将父进程陷入内核那一时刻的 cpu 寄存器也复制到子进程中，这样就子进程返回用户空间的地方与父进程一样
   *(np->trapframe) = *(p->trapframe);
 
   // Cause fork to return 0 in the child.
-  np->trapframe->a0 = 0;
+  np->trapframe->a0 = 0; // 返回 0 ，表示子进程
 
   // increment reference counts on open file descriptors.
   for (i = 0; i < NOFILE; i++)
     if (p->ofile[i])
-      np->ofile[i] = filedup(p->ofile[i]);
+      np->ofile[i] = filedup(p->ofile[i]); // 把父进程打开的文件描述符也拷贝进来，并增加文件引用计数
   np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));

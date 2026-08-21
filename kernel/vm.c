@@ -314,7 +314,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     flags = PTE_FLAGS(*pte);
     if ((mem = kalloc()) == 0)
       goto err;
-    memmove(mem, (char *)pa, PGSIZE);
+    memmove(mem, (char *)pa, PGSIZE); // 把物理页，一页页的拷贝到新的 pagetable 所映射的物理地址中
     if (mappages(new, i, PGSIZE, (uint64)mem, flags) != 0) {
       kfree(mem);
       goto err;
